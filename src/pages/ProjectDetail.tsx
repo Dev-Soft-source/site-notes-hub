@@ -54,6 +54,28 @@ export default function ProjectDetail() {
       }
     };
     load();
+
+    // Realtime: live updates feed
+    const channel = supabase
+      .channel(`project-updates-${id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "project_updates", filter: `project_id=eq.${id}` },
+        (payload) => {
+          const newUpd = payload.new as Update;
+          setUpdates((prev) => prev.some((x) => x.id === newUpd.id) ? prev : [newUpd, ...prev]);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "project_updates", filter: `project_id=eq.${id}` },
+        (payload) => {
+          const upd = payload.new as Update;
+          setUpdates((prev) => prev.map((x) => x.id === upd.id ? upd : x));
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [id]);
 
   const refreshUpdates = async () => {
