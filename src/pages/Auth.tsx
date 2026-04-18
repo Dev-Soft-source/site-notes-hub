@@ -15,7 +15,8 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const nav = useNavigate();
   const loc = useLocation() as any;
-  const from = loc.state?.from?.pathname || "/";
+  const pendingToken = typeof window !== "undefined" ? sessionStorage.getItem("pending_qr_token") : null;
+  const from = pendingToken ? `/p/${pendingToken}` : (loc.state?.from?.pathname || "/");
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,10 +29,12 @@ export default function Auth() {
         });
         if (error) throw error;
         toast.success("Account created. You're in!");
+        if (pendingToken) sessionStorage.removeItem("pending_qr_token");
         nav(from, { replace: true });
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        if (pendingToken) sessionStorage.removeItem("pending_qr_token");
         nav(from, { replace: true });
       }
     } catch (e: any) {
