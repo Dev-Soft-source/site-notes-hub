@@ -44,7 +44,7 @@ export default function Projects() {
         (payload) => {
           const n: any = payload.new;
           setUnread((u) => u + 1);
-          sonnerToast(n.title, { description: n.body || undefined });
+          toast(n.title, { description: n.body || undefined });
         }
       )
       .on(
