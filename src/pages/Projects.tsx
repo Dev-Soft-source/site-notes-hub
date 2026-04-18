@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/auth/AuthContext";
+import { toast as sonnerToast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Plus, QrCode, LogOut, HardHat, MapPin, Bell } from "lucide-react";
 import { toast } from "sonner";
