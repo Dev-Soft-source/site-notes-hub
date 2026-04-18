@@ -19,6 +19,7 @@ export default function Projects() {
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
+    if (!user) return;
     const load = async () => {
       const { data, error } = await supabase
         .from("projects")
@@ -34,7 +35,35 @@ export default function Projects() {
       setLoading(false);
     };
     load();
-  }, []);
+
+    // Realtime: increment badge + toast when a new notification arrives for this user
+    const channel = supabase
+      .channel(`notif-badge-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const n: any = payload.new;
+          setUnread((u) => u + 1);
+          sonnerToast(n.title, { description: n.body || undefined });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        () => {
+          // Recompute unread when items get marked read elsewhere
+          supabase
+            .from("notifications")
+            .select("*", { count: "exact", head: true })
+            .is("read_at", null)
+            .then(({ count }) => setUnread(count || 0));
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
 
   const signOut = async () => { await supabase.auth.signOut(); nav("/auth"); };
 
