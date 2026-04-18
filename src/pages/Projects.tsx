@@ -2,11 +2,10 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/auth/AuthContext";
-import { toast } from "sonner";
-const sonnerToast = toast;
 import { Button } from "@/components/ui/button";
 import { Plus, QrCode, LogOut, HardHat, MapPin, Bell } from "lucide-react";
 import { toast } from "sonner";
+const sonnerToast = toast;
 
 interface Project {
   id: string; name: string; site_address: string | null; created_at: string;
