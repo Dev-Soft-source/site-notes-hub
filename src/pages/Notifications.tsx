@@ -23,6 +23,22 @@ export default function Notifications() {
       }
     };
     load();
+
+    // Realtime: prepend new notifications as they arrive
+    const channel = supabase
+      .channel("notif-list")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications" },
+        (payload) => {
+          const n = payload.new as Notif;
+          setItems((prev) => [n, ...prev]);
+          // Mark immediately as read since the user is on this page
+          supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", n.id);
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   return (
