@@ -4,10 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/auth/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronLeft, MapPin, FileText, Users, Send, Mic, Loader2, Download, QrCode } from "lucide-react";
+import { ChevronLeft, MapPin, FileText, Users, Send, Mic, Loader2, Download, QrCode, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { VoiceRecorder } from "@/components/VoiceRecorder";
-import { generateCoverSheetPDF } from "@/lib/pdf";
+import { generateCoverSheetPDF, generateDrawingWithQrPDF } from "@/lib/pdf";
 
 interface Project {
   id: string; name: string; site_address: string | null; description: string | null;
@@ -34,6 +34,7 @@ export default function ProjectDetail() {
   const [posting, setPosting] = useState(false);
   const [uploadingDrawing, setUploadingDrawing] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
+  const [printingLatest, setPrintingLatest] = useState(false);
 
   const projectUrl = project ? `${window.location.origin}/p/${project.qr_token}` : "";
 

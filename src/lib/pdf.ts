@@ -133,5 +133,5 @@ export async function generateDrawingWithQrPDF(opts: {
   }
 
   const bytes = await merged.save();
-  return new Blob([bytes], { type: "application/pdf" });
+  return new Blob([bytes as BlobPart], { type: "application/pdf" });
 }
