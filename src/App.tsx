@@ -8,7 +8,6 @@ import { RequireAuth } from "@/auth/RequireAuth";
 import Projects from "./pages/Projects";
 import NewProject from "./pages/NewProject";
 import ProjectDetail from "./pages/ProjectDetail";
-import Auth from "./pages/Auth";
 import Scan from "./pages/Scan";
 import QrLanding from "./pages/QrLanding";
 import Invite from "./pages/Invite";
@@ -25,7 +24,6 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            <Route path="/auth" element={<Auth />} />
             <Route path="/p/:token" element={<QrLanding />} />
             <Route path="/" element={<RequireAuth><Projects /></RequireAuth>} />
             <Route path="/projects/new" element={<RequireAuth><NewProject /></RequireAuth>} />
