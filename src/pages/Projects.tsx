@@ -64,7 +64,11 @@ export default function Projects() {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
-  const signOut = async () => { await supabase.auth.signOut(); nav("/auth"); };
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    await supabase.auth.signInAnonymously();
+    nav("/");
+  };
 
   return (
     <div className="min-h-screen bg-background pb-24">

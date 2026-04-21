@@ -11,12 +11,10 @@ export default function QrLanding() {
   useEffect(() => {
     const go = async () => {
       if (!token) return;
-      const { data: { session } } = await supabase.auth.getSession();
+      let { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        // Save token, send to auth, redirect back
-        sessionStorage.setItem("pending_qr_token", token);
-        nav("/auth", { replace: true });
-        return;
+        await supabase.auth.signInAnonymously();
+        ({ data: { session } } = await supabase.auth.getSession());
       }
       const { data, error } = await supabase.from("projects").select("id").eq("qr_token", token).maybeSingle();
       if (error || !data) {
