@@ -1,10 +1,24 @@
+import { useEffect, useState } from "react";
 import { useAuth } from "@/auth/AuthContext";
-import { Navigate, useLocation } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 export const RequireAuth = ({ children }: { children: JSX.Element }) => {
   const { user, loading } = useAuth();
-  const loc = useLocation();
-  if (loading) return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Loading…</div>;
-  if (!user) return <Navigate to="/auth" state={{ from: loc }} replace />;
+  const [signingIn, setSigningIn] = useState(false);
+
+  useEffect(() => {
+    if (!loading && !user && !signingIn) {
+      setSigningIn(true);
+      supabase.auth.signInAnonymously().finally(() => setSigningIn(false));
+    }
+  }, [loading, user, signingIn]);
+
+  if (loading || !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
   return children;
 };
