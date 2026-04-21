@@ -4,10 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/auth/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronLeft, MapPin, FileText, Users, Send, Mic, Loader2, Download, QrCode } from "lucide-react";
+import { ChevronLeft, MapPin, FileText, Users, Send, Mic, Loader2, Download, QrCode, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { VoiceRecorder } from "@/components/VoiceRecorder";
-import { generateCoverSheetPDF } from "@/lib/pdf";
+import { generateCoverSheetPDF, generateDrawingWithQrPDF } from "@/lib/pdf";
 
 interface Project {
   id: string; name: string; site_address: string | null; description: string | null;
@@ -18,7 +18,7 @@ interface Update {
   transcription: string | null; transcription_status: string | null;
   created_at: string; author_id: string;
 }
-interface Drawing { id: string; name: string; original_path: string; qr_pdf_path: string | null; }
+interface Drawing { id: string; name: string; original_path: string; qr_pdf_path: string | null; mime_type: string | null; }
 interface Member { user_id: string; email: string | null; full_name: string | null; }
 
 export default function ProjectDetail() {
@@ -34,6 +34,7 @@ export default function ProjectDetail() {
   const [posting, setPosting] = useState(false);
   const [uploadingDrawing, setUploadingDrawing] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
+  const [printingLatest, setPrintingLatest] = useState(false);
 
   const projectUrl = project ? `${window.location.origin}/p/${project.qr_token}` : "";
 
@@ -183,6 +184,42 @@ export default function ProjectDetail() {
     window.open(data.signedUrl, "_blank");
   };
 
+  const printLatestDrawing = async () => {
+    if (!project) return;
+    const latest = drawings[0];
+    if (!latest) { toast.error("Upload a drawing first"); return; }
+    setPrintingLatest(true);
+    try {
+      const { data: signed, error: sErr } = await supabase.storage
+        .from("drawings").createSignedUrl(latest.original_path, 120);
+      if (sErr || !signed) throw new Error(sErr?.message || "Could not load drawing");
+      const fileRes = await fetch(signed.signedUrl);
+      const fileBlob = await fileRes.blob();
+
+      const merged = await generateDrawingWithQrPDF({
+        projectName: project.name,
+        siteAddress: project.site_address,
+        description: project.description,
+        qrUrl: projectUrl,
+        drawingName: latest.name,
+        drawingBlob: fileBlob,
+        drawingMimeType: latest.mime_type ?? fileBlob.type,
+      });
+
+      const url = URL.createObjectURL(merged);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${project.name}-${latest.name.replace(/\.[^.]+$/, "")}-with-QR.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Ready to print");
+    } catch (e: any) {
+      toast.error(e.message || "Could not generate PDF");
+    } finally {
+      setPrintingLatest(false);
+    }
+  };
+
   if (!project) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading…</div>;
 
   return (
@@ -192,9 +229,20 @@ export default function ProjectDetail() {
           <button onClick={() => nav("/")} className="size-10 -ml-2 grid place-items-center rounded-full active:bg-white/20">
             <ChevronLeft className="size-6" />
           </button>
-          <button onClick={downloadProjectQR} className="size-10 grid place-items-center rounded-full bg-white/10 active:bg-white/20" title="Download QR">
-            <QrCode className="size-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={printLatestDrawing}
+              disabled={printingLatest || drawings.length === 0}
+              className="h-10 px-3 grid grid-flow-col items-center gap-1.5 rounded-full bg-white/10 active:bg-white/20 disabled:opacity-50 text-sm font-medium"
+              title="Print latest drawing with QR"
+            >
+              {printingLatest ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}
+              <span>Print drawing</span>
+            </button>
+            <button onClick={downloadProjectQR} className="size-10 grid place-items-center rounded-full bg-white/10 active:bg-white/20" title="Download QR">
+              <QrCode className="size-5" />
+            </button>
+          </div>
         </div>
         <h1 className="text-2xl font-bold leading-tight">{project.name}</h1>
         {project.site_address && (
