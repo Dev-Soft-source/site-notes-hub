@@ -18,7 +18,7 @@ interface Update {
   transcription: string | null; transcription_status: string | null;
   created_at: string; author_id: string;
 }
-interface Drawing { id: string; name: string; original_path: string; qr_pdf_path: string | null; }
+interface Drawing { id: string; name: string; original_path: string; qr_pdf_path: string | null; mime_type: string | null; }
 interface Member { user_id: string; email: string | null; full_name: string | null; }
 
 export default function ProjectDetail() {
