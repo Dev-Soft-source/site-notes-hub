@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Html5Qrcode } from "html5-qrcode";
+import { Html5Qrcode, Html5QrcodeScannerState } from "html5-qrcode";
 import { ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 
@@ -17,11 +17,23 @@ export default function Scan() {
     const scanner = new Html5Qrcode(id);
     scannerRef.current = scanner;
 
+    const safeStop = async () => {
+      const s = scannerRef.current;
+      if (!s) return;
+      try {
+        const state = s.getState();
+        if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+          await s.stop();
+        }
+      } catch {}
+      try { s.clear(); } catch {}
+    };
+
     scanner.start(
       { facingMode: "environment" },
       { fps: 10, qrbox: { width: 240, height: 240 } },
       (text) => {
-        scanner.stop().catch(() => {});
+        safeStop();
         try {
           const url = new URL(text);
           const m = url.pathname.match(/^\/p\/([^/]+)/);
@@ -33,7 +45,7 @@ export default function Scan() {
       () => {}
     ).catch((e) => setError(e?.message || "Camera unavailable"));
 
-    return () => { scannerRef.current?.stop().catch(() => {}); };
+    return () => { safeStop(); };
   }, [nav]);
 
   return (
