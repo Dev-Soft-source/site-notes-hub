@@ -39,7 +39,7 @@ export const VoiceRecorder = ({ onRecorded, disabled }: Props) => {
       setRecording(true);
       setSeconds(0);
       timerRef.current = window.setInterval(() => setSeconds((s) => s + 1), 1000);
-    } catch (e: any) {
+    } catch {
       toast.error("Microphone access denied");
     }
   };

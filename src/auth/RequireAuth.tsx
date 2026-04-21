@@ -1,24 +1,30 @@
+"use client";
+
 import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/auth/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { getFirebaseAuth } from "@/integrations/firebase/client";
 
-// Module-level guard so we only ever fire one anonymous sign-in
-// across the whole app session, even if RequireAuth remounts.
-let anonSignInPromise: Promise<unknown> | null = null;
-
-export const RequireAuth = ({ children }: { children: JSX.Element }) => {
+export const RequireAuth = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
+  const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
-    if (loading || user) return;
-    if (!anonSignInPromise) {
-      anonSignInPromise = supabase.auth.signInAnonymously().catch((e) => {
-        console.error("Anonymous sign-in failed:", e);
-        // Allow a retry later (e.g., after rate-limit cool-off)
-        setTimeout(() => { anonSignInPromise = null; }, 30_000);
-      });
-    }
-  }, [loading, user]);
+    const auth = getFirebaseAuth();
+    if (!auth || loading || user) return;
+    const redirect = pathname && pathname.startsWith("/") && !pathname.startsWith("//") ? pathname : "/";
+    const q = new URLSearchParams({ redirect });
+    router.replace(`/login?${q.toString()}`);
+  }, [loading, user, router, pathname]);
+
+  if (!getFirebaseAuth()) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-6 text-center text-muted-foreground">
+        Set NEXT_PUBLIC_FIREBASE_* environment variables to use SiteSync.
+      </div>
+    );
+  }
 
   if (loading || !user) {
     return (

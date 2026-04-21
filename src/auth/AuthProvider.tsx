@@ -1,29 +1,27 @@
+"use client";
+
 import { useEffect, useState, ReactNode } from "react";
-import { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import type { User } from "firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
+import { getFirebaseAuth } from "@/integrations/firebase/client";
 import { AuthContext } from "./AuthContext";
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-    });
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      setUser(s?.user ?? null);
+    const auth = getFirebaseAuth();
+    if (!auth) {
       setLoading(false);
-    });
-    return () => sub.subscription.unsubscribe();
+      return;
+    }
+
+    const unsub = onAuthStateChanged(auth, setUser);
+    void auth.authStateReady().finally(() => setLoading(false));
+
+    return () => unsub();
   }, []);
 
-  return (
-    <AuthContext.Provider value={{ session, user, loading }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={{ user, loading }}>{children}</AuthContext.Provider>;
 };
