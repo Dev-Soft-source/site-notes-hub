@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
+import { useAuth } from "@/auth/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,8 +14,9 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
+  const { user: signedInUser } = useAuth();
   const nav = useNavigate();
-  const loc = useLocation() as any;
+  const loc = useLocation() as { state?: { from?: { pathname?: string } } };
   const pendingToken = typeof window !== "undefined" ? sessionStorage.getItem("pending_qr_token") : null;
   const from = pendingToken ? `/p/${pendingToken}` : (loc.state?.from?.pathname || "/");
 
@@ -23,17 +25,30 @@ export default function Auth() {
     setLoading(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email, password,
-          options: { emailRedirectTo: window.location.origin, data: { full_name: fullName } },
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth`,
+            data: { full_name: fullName },
+          },
         });
         if (error) throw error;
+        if (!data.session) {
+          toast.success("Check your email to confirm your account, then sign in here.");
+          setMode("signin");
+          return;
+        }
         toast.success("Account created. You're in!");
         if (pendingToken) sessionStorage.removeItem("pending_qr_token");
         nav(from, { replace: true });
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        if (!data.session) {
+          toast.error("Could not establish a session. Try again.");
+          return;
+        }
         if (pendingToken) sessionStorage.removeItem("pending_qr_token");
         nav(from, { replace: true });
       }
@@ -98,7 +113,13 @@ export default function Auth() {
         <p className="text-xs text-center text-muted-foreground mt-8">
           By continuing you agree to our terms.
           <br />
-          <Link to="/" className="underline">Back home</Link>
+          {signedInUser ? (
+            <Link to="/" className="underline">
+              Go to projects
+            </Link>
+          ) : (
+            <span className="text-muted-foreground">Sign in above to open your workspace.</span>
+          )}
         </p>
       </main>
     </div>

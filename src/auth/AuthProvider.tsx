@@ -1,4 +1,5 @@
 import { useEffect, useState, ReactNode } from "react";
+import { flushSync } from "react-dom";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthContext } from "./AuthContext";
@@ -10,8 +11,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      setUser(s?.user ?? null);
+      // Commit before callers (e.g. signIn) continue so route guards see the new user.
+      flushSync(() => {
+        setSession(s);
+        setUser(s?.user ?? null);
+      });
     });
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s);
