@@ -1,0 +1,25 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isProjectMember(projectId) {
+      return signedIn() && firestore.exists(
+        /databases/(default)/documents/project_members/$(projectId + '_' + request.auth.uid)
+      );
+    }
+
+    match /voice-notes/{projectId}/{uid}/{allPaths=**} {
+      allow read: if signedIn() && (request.auth.uid == uid || isProjectMember(projectId));
+      allow write: if signedIn() && request.auth.uid == uid && isProjectMember(projectId);
+    }
+
+    match /drawings/{projectId}/{uid}/{allPaths=**} {
+      allow read: if signedIn() && (request.auth.uid == uid || isProjectMember(projectId));
+      allow write: if signedIn() && request.auth.uid == uid && isProjectMember(projectId);
+    }
+  }
+}

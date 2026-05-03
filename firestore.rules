@@ -1,0 +1,103 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function ownUid() {
+      return request.auth.uid;
+    }
+
+    function memberDocId(projectId) {
+      return projectId + '_' + ownUid();
+    }
+
+    function isProjectMember(projectId) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/project_members/$(memberDocId(projectId)));
+    }
+
+    match /projects/{projectId} {
+      allow read: if signedIn() && (
+        isProjectMember(projectId) ||
+        resource.data.created_by == ownUid()
+      );
+      allow create: if signedIn() &&
+        request.resource.data.created_by == ownUid();
+      allow update, delete: if signedIn() &&
+        resource.data.created_by == ownUid();
+    }
+
+    match /qr_redirects/{token} {
+      allow read: if signedIn();
+      allow create: if signedIn() &&
+        request.resource.data.project_id is string &&
+        exists(/databases/$(database)/documents/projects/$(request.resource.data.project_id)) &&
+        get(/databases/$(database)/documents/projects/$(request.resource.data.project_id)).data.created_by == ownUid();
+      allow update, delete: if false;
+    }
+
+    match /project_updates/{updateId} {
+      allow read: if signedIn() && isProjectMember(resource.data.project_id);
+      allow create: if signedIn() &&
+        request.resource.data.author_id == ownUid() &&
+        isProjectMember(request.resource.data.project_id);
+      allow update, delete: if signedIn() &&
+        resource.data.author_id == ownUid();
+    }
+
+    match /drawings/{drawingId} {
+      allow read: if signedIn() && isProjectMember(resource.data.project_id);
+      allow create: if signedIn() &&
+        request.resource.data.uploaded_by == ownUid() &&
+        isProjectMember(request.resource.data.project_id);
+      allow update, delete: if signedIn() &&
+        resource.data.uploaded_by == ownUid();
+    }
+
+    match /profiles/{userId} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && userId == ownUid();
+      allow delete: if signedIn() && userId == ownUid();
+    }
+
+    match /project_members/{memberId} {
+      allow read: if signedIn() && (
+        resource.data.user_id == ownUid() ||
+        isProjectMember(resource.data.project_id)
+      );
+      // Owner row (batch with new project), invite by existing member, or self-join via QR (member role + project exists).
+      allow create: if signedIn() &&
+        request.resource.data.user_id == ownUid() &&
+        (
+          (
+            request.resource.data.role == 'owner' &&
+            exists(/databases/$(database)/documents/projects/$(request.resource.data.project_id)) &&
+            get(/databases/$(database)/documents/projects/$(request.resource.data.project_id)).data.created_by == ownUid()
+          ) ||
+          isProjectMember(request.resource.data.project_id) ||
+          (
+            request.resource.data.role == 'member' &&
+            exists(/databases/$(database)/documents/projects/$(request.resource.data.project_id))
+          )
+        );
+      allow update, delete: if signedIn() &&
+        get(/databases/$(database)/documents/projects/$(resource.data.project_id)).data.created_by == ownUid();
+    }
+
+    match /project_invites/{inviteId} {
+      allow read: if signedIn() && isProjectMember(resource.data.project_id);
+      allow create: if signedIn() && isProjectMember(request.resource.data.project_id);
+      allow update, delete: if signedIn() &&
+        get(/databases/$(database)/documents/projects/$(resource.data.project_id)).data.created_by == ownUid();
+    }
+
+    match /notifications/{notificationId} {
+      allow read, update: if signedIn() && resource.data.user_id == ownUid();
+      allow create: if false;
+      allow delete: if false;
+    }
+  }
+}

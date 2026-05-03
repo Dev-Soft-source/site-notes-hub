@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import QRCode from "qrcode";
+import { PDFDocument } from "pdf-lib";
 
 export async function generateCoverSheetPDF(opts: {
   projectName: string;
@@ -72,4 +73,65 @@ export async function generateCoverSheetPDF(opts: {
   doc.text(opts.qrUrl, 40, pageH - 8);
 
   return doc.output("blob");
+}
+
+/**
+ * Build a printable PDF: cover sheet (with QR) + the original drawing.
+ * Supports PDF and image (jpeg/png) drawings. Falls back to cover-only if
+ * the file type can't be embedded.
+ */
+export async function generateDrawingWithQrPDF(opts: {
+  projectName: string;
+  siteAddress?: string | null;
+  description?: string | null;
+  qrUrl: string;
+  drawingName: string;
+  drawingBlob: Blob;
+  drawingMimeType: string | null;
+}): Promise<Blob> {
+  const coverBlob = await generateCoverSheetPDF({
+    projectName: opts.projectName,
+    siteAddress: opts.siteAddress,
+    description: opts.description,
+    qrUrl: opts.qrUrl,
+    drawingName: opts.drawingName,
+  });
+
+  const merged = await PDFDocument.create();
+  const coverDoc = await PDFDocument.load(await coverBlob.arrayBuffer());
+  const coverPages = await merged.copyPages(coverDoc, coverDoc.getPageIndices());
+  coverPages.forEach((p) => merged.addPage(p));
+
+  const mime = (opts.drawingMimeType || "").toLowerCase();
+  const drawingBytes = await opts.drawingBlob.arrayBuffer();
+
+  if (mime === "application/pdf" || opts.drawingName.toLowerCase().endsWith(".pdf")) {
+    const drawingDoc = await PDFDocument.load(drawingBytes);
+    const pages = await merged.copyPages(drawingDoc, drawingDoc.getPageIndices());
+    pages.forEach((p) => merged.addPage(p));
+  } else if (mime.startsWith("image/")) {
+    const img =
+      mime.includes("png") || opts.drawingName.toLowerCase().endsWith(".png")
+        ? await merged.embedPng(drawingBytes)
+        : await merged.embedJpg(drawingBytes);
+    // A4 in points
+    const pageW = 595.28;
+    const pageH = 841.89;
+    const page = merged.addPage([pageW, pageH]);
+    const margin = 36;
+    const maxW = pageW - margin * 2;
+    const maxH = pageH - margin * 2;
+    const scale = Math.min(maxW / img.width, maxH / img.height);
+    const w = img.width * scale;
+    const h = img.height * scale;
+    page.drawImage(img, {
+      x: (pageW - w) / 2,
+      y: (pageH - h) / 2,
+      width: w,
+      height: h,
+    });
+  }
+
+  const bytes = await merged.save();
+  return new Blob([bytes as BlobPart], { type: "application/pdf" });
 }
