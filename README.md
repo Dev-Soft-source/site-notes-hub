@@ -85,6 +85,3 @@ Deploy the implementations from **`supabase/functions/`** to the same Supabase p
 | `src/integrations/supabase/` | Typed Supabase client |
 | `supabase/` | Migrations and Edge Functions |
 
-## License
-
-Private / not specified in this repository.
